@@ -17,22 +17,20 @@ import {PoolSwapTest} from "v4-core/src/test/PoolSwapTest.sol";
 import {StateLibrary} from "v4-core/src/libraries/StateLibrary.sol";
 import {TickMath} from "v4-core/src/libraries/TickMath.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
-import "../src/SwapFeeHook.sol";
+import "../src/AutoLiquidityHook.sol";
 
-contract SwapFeeHookTest is Test, Fixtures {
+contract AutoLiquidityHookTest is Test, Fixtures {
     using EasyPosm for IPositionManager;
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
     using StateLibrary for IPoolManager;
 
-    SwapFeeHook hook;
+    AutoLiquidityHook hook;
     PoolId poolId;
 
     uint256 tokenId;
     int24 tickLower;
     int24 tickUpper;
-
-    address feeCollector = address(0x1234);
 
     function setUp() public {
         // creates the pool manager, utility routers, and test tokens
@@ -44,12 +42,13 @@ contract SwapFeeHookTest is Test, Fixtures {
         // Deploy the hook to an address with the correct flags
         address flags = address(
             uint160(
-                Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
+                Hooks.BEFORE_SWAP_FLAG
+                | Hooks.AFTER_SWAP_FLAG
             ) ^ (0x4444 << 144) // Namespace the hook to avoid collisions
         );
-        bytes memory constructorArgs = abi.encode(manager, feeCollector); //Add all the necessary constructor arguments from the hook
-        deployCodeTo("SwapFeeHook.sol:SwapFeeHook", constructorArgs, flags);
-        hook = SwapFeeHook(flags);
+        bytes memory constructorArgs = abi.encode(manager); //Add all the necessary constructor arguments from the hook
+        deployCodeTo("AutoLiquidityHook.sol:AutoLiquidityHook", constructorArgs, flags);
+        hook = AutoLiquidityHook(flags);
 
         // Create the pool
         key = PoolKey(currency0, currency1, 3000, 60, IHooks(hook));
@@ -76,7 +75,7 @@ contract SwapFeeHookTest is Test, Fixtures {
                 liquidityAmount,
                 amount0Expected + 1,
                 amount1Expected + 1,
-                address(this),
+                address(hook),
                 block.timestamp,
                 ZERO_BYTES
             );
@@ -90,8 +89,6 @@ contract SwapFeeHookTest is Test, Fixtures {
         currency0.transfer(sender, 10e18);
         console.log("balance before1: %s", currency0.balanceOf(sender));
         console.log("balance before2: %s", currency1.balanceOf(sender));
-        console.log("balance of feeCollector1: %s", manager.balanceOf(feeCollector, currency0.toId()));
-        console.log("balance of feeCollector2: %s", manager.balanceOf(feeCollector, currency1.toId()));
         // Perform a test swap //
         bool zeroForOne = true;
         int256 amountSpecified = -1e18; // negative number indicates exact input swap!
@@ -102,13 +99,5 @@ contract SwapFeeHookTest is Test, Fixtures {
         vm.stopPrank();
         console.log("balance after1: %s", currency0.balanceOf(sender));
         console.log("balance after2: %s", currency1.balanceOf(sender));
-        console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency0.toId()));
-        console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency1.toId()));
-
-//        vm.startPrank(feeCollector);
-//        manager.mint(feeCollector, currency0.toId(), manager.balanceOf(feeCollector, currency0.toId()));
-//        vm.stopPrank();
-//        console.log("balance of feeCollector: %s", currency0.balanceOf(feeCollector));
-//        console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency0.toId()));
     }
 }

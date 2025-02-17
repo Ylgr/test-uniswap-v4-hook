@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import {BaseHook} from "v4-periphery/src/base/hooks/BaseHook.sol";
 import {Ownable} from "openzeppelin/access/Ownable.sol";
-import {IERC20} from "../lib/uniswap-hooks/lib/v4-core/lib/openzeppelin-contracts/lib/erc4626-tests/ERC4626.prop.sol";
 import {Currency, CurrencyLibrary} from "v4-core/src/types/Currency.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/src/libraries/Hooks.sol";
