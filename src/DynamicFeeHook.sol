@@ -8,11 +8,16 @@ import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/src/types/BeforeSwapDelta.sol";
+import {console} from "forge-std/console.sol";
 
 contract DynamicFeeHook  is BaseHook, Ownable {
+    using LPFeeLibrary for uint24;
 
     constructor(IPoolManager _poolManager) BaseHook(_poolManager) Ownable(_msgSender()) {
     }
+
+    uint24 internal fee;
+    IPoolManager manager;
 
     function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
         return Hooks.Permissions({
@@ -33,16 +38,26 @@ contract DynamicFeeHook  is BaseHook, Ownable {
         });
     }
 
-    function beforeSwap(
-        address sender,
-        PoolKey calldata key,
-        IPoolManager.SwapParams calldata params,
-        bytes calldata hookData
-    ) external override returns (bytes4, BeforeSwapDelta, uint24) {
+    function setManager(IPoolManager _manager) external {
+        manager = _manager;
+    }
 
-        uint24 fee = 100000 | LPFeeLibrary.OVERRIDE_FEE_FLAG;
+    function setFee(uint24 _fee) external {
+        fee = _fee;
+    }
 
-        return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, fee);
+    function beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
+    external
+    view
+    override
+    returns (bytes4, BeforeSwapDelta, uint24)
+    {
+        // attach the fee flag to `fee` to enable overriding the pool's stored fee
+        console.log("fee | LPFeeLibrary.OVERRIDE_FEE_FLAG: %s", fee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
+        return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, fee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
+    }
 
+    function forcePoolFeeUpdate(PoolKey calldata _key, uint24 _fee) external {
+        manager.updateDynamicLPFee(_key, _fee);
     }
 }

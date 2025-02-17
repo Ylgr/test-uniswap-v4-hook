@@ -17,6 +17,7 @@ import {PoolSwapTest} from "v4-core/src/test/PoolSwapTest.sol";
 import {StateLibrary} from "v4-core/src/libraries/StateLibrary.sol";
 import {TickMath} from "v4-core/src/libraries/TickMath.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
+import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
 import "../src/DynamicFeeHook.sol";
 
 contract DynamicFeeHookTest is Test, Fixtures {
@@ -45,14 +46,16 @@ contract DynamicFeeHookTest is Test, Fixtures {
         address flags = address(
             uint160(
                 Hooks.BEFORE_SWAP_FLAG
+//                Hooks.ALL_HOOK_MASK
             ) ^ (0x4444 << 144) // Namespace the hook to avoid collisions
         );
         bytes memory constructorArgs = abi.encode(manager); //Add all the necessary constructor arguments from the hook
         deployCodeTo("DynamicFeeHook.sol:DynamicFeeHook", constructorArgs, flags);
         hook = DynamicFeeHook(flags);
-
+//        hook = new DynamicFeeHook(manager);
+        hook.setFee(100_000);
         // Create the pool
-        key = PoolKey(currency0, currency1, 3000, 60, IHooks(hook));
+        key = PoolKey(currency0, currency1, LPFeeLibrary.DYNAMIC_FEE_FLAG, 60, IHooks(hook));
         poolId = key.toId();
         manager.initialize(key, SQRT_PRICE_1_1);
 
