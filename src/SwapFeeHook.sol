@@ -66,7 +66,7 @@ contract SwapFeeHook is BaseHook, Ownable {
         uint256 feeAmount = params.zeroForOne ?
             uint256(int256(amountUnspecified)).mulWadDown(zeroToOneFee) :
             uint256(int256(amountUnspecified)).mulWadDown(oneToZeroFee);
-        poolManager.mint(feeCollector, currencyUnspecified.toId(), feeAmount);
+        poolManager.take(currencyUnspecified, feeCollector, feeAmount);
         return (BaseHook.afterSwap.selector, feeAmount.toInt128());
     }
 

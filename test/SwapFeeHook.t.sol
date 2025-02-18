@@ -104,6 +104,8 @@ contract SwapFeeHookTest is Test, Fixtures {
         console.log("balance after2: %s", currency1.balanceOf(sender));
         console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency0.toId()));
         console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency1.toId()));
+        console.log("balance of currency0 feeCollector: %s", currency0.balanceOf(feeCollector));
+        console.log("balance of currency1 feeCollector: %s", currency1.balanceOf(feeCollector));
     }
 
     function test_afterSwap_OneForZero() public {
@@ -115,6 +117,8 @@ contract SwapFeeHookTest is Test, Fixtures {
         console.log("balance before2: %s", currency1.balanceOf(sender));
         console.log("balance of feeCollector1: %s", manager.balanceOf(feeCollector, currency0.toId()));
         console.log("balance of feeCollector2: %s", manager.balanceOf(feeCollector, currency1.toId()));
+        console.log("balance of currency0 feeCollector: %s", currency0.balanceOf(feeCollector));
+        console.log("balance of currency1 feeCollector: %s", currency1.balanceOf(feeCollector));
         bool zeroForOne = false;
         int256 amountSpecified = -1e18; // negative number indicates exact input swap!
         vm.startPrank(sender);
@@ -126,5 +130,7 @@ contract SwapFeeHookTest is Test, Fixtures {
         console.log("balance after2: %s", currency1.balanceOf(sender));
         console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency0.toId()));
         console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency1.toId()));
+        console.log("balance of currency0 feeCollector: %s", currency0.balanceOf(feeCollector));
+        console.log("balance of currency1 feeCollector: %s", currency1.balanceOf(feeCollector));
     }
 }
