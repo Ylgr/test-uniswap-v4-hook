@@ -17,22 +17,22 @@ import {PoolSwapTest} from "v4-core/src/test/PoolSwapTest.sol";
 import {StateLibrary} from "v4-core/src/libraries/StateLibrary.sol";
 import {TickMath} from "v4-core/src/libraries/TickMath.sol";
 import {IERC20} from "openzeppelin/token/ERC20/IERC20.sol";
-import "../src/SwapFeeHook.sol";
+import {LPFeeLibrary} from "v4-core/src/libraries/LPFeeLibrary.sol";
+import "../src/FeeSideHook.sol";
 
-contract SwapFeeHookTest is Test, Fixtures {
+contract FeeSideHookTest is Test, Fixtures {
     using EasyPosm for IPositionManager;
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
     using StateLibrary for IPoolManager;
 
-    SwapFeeHook hook;
+    FeeSideHook hook;
     PoolId poolId;
 
     uint256 tokenId;
     int24 tickLower;
     int24 tickUpper;
 
-    address feeCollector = address(0x1234);
 
     function setUp() public {
         // creates the pool manager, utility routers, and test tokens
@@ -44,15 +44,14 @@ contract SwapFeeHookTest is Test, Fixtures {
         // Deploy the hook to an address with the correct flags
         address flags = address(
             uint160(
-                Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
+                Hooks.BEFORE_SWAP_FLAG
             ) ^ (0x4444 << 144) // Namespace the hook to avoid collisions
         );
-        bytes memory constructorArgs = abi.encode(manager, feeCollector); //Add all the necessary constructor arguments from the hook
-        deployCodeTo("SwapFeeHook.sol:SwapFeeHook", constructorArgs, flags);
-        hook = SwapFeeHook(flags);
-
+        bytes memory constructorArgs = abi.encode(manager, address(this)); //Add all the necessary constructor arguments from the hook
+        deployCodeTo("FeeSideHook.sol:FeeSideHook", constructorArgs, flags);
+        hook = FeeSideHook(flags);
         // Create the pool
-        key = PoolKey(currency0, currency1, 3000, 60, IHooks(hook));
+        key = PoolKey(currency0, currency1, LPFeeLibrary.DYNAMIC_FEE_FLAG, 60, IHooks(hook));
         poolId = key.toId();
         manager.initialize(key, SQRT_PRICE_1_1);
 
@@ -83,15 +82,13 @@ contract SwapFeeHookTest is Test, Fixtures {
         }
     }
 
-    function test_afterSwap_ZeroForOne() public {
+    function test_zeroToOne() public {
         address sender = vm.addr(1);
         console.log("sender: %s", sender);
         console.log("address(hook): %s", address(hook));
         currency0.transfer(sender, 10e18);
         console.log("balance before1: %s", currency0.balanceOf(sender));
         console.log("balance before2: %s", currency1.balanceOf(sender));
-        console.log("balance of feeCollector1: %s", manager.balanceOf(feeCollector, currency0.toId()));
-        console.log("balance of feeCollector2: %s", manager.balanceOf(feeCollector, currency1.toId()));
         // Perform a test swap //
         bool zeroForOne = true;
         int256 amountSpecified = -1e18; // negative number indicates exact input swap!
@@ -102,29 +99,24 @@ contract SwapFeeHookTest is Test, Fixtures {
         vm.stopPrank();
         console.log("balance after1: %s", currency0.balanceOf(sender));
         console.log("balance after2: %s", currency1.balanceOf(sender));
-        console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency0.toId()));
-        console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency1.toId()));
     }
 
-    function test_afterSwap_OneForZero() public {
-        address sender = vm.addr(1);
+    function test_oneToZero() public {
+        address sender = vm.addr(2);
         console.log("sender: %s", sender);
         console.log("address(hook): %s", address(hook));
         currency1.transfer(sender, 10e18);
         console.log("balance before1: %s", currency0.balanceOf(sender));
         console.log("balance before2: %s", currency1.balanceOf(sender));
-        console.log("balance of feeCollector1: %s", manager.balanceOf(feeCollector, currency0.toId()));
-        console.log("balance of feeCollector2: %s", manager.balanceOf(feeCollector, currency1.toId()));
+        // Perform a test swap //
         bool zeroForOne = false;
         int256 amountSpecified = -1e18; // negative number indicates exact input swap!
         vm.startPrank(sender);
-        console.log("currency1.unwrap(): %s", address(uint160(currency1.toId())));
+        console.log("currency0.unwrap(): %s", address(uint160(currency0.toId())));
         IERC20(address(uint160(currency1.toId()))).approve(address(swapRouter), 10e18);
         BalanceDelta swapDelta = swap(key, zeroForOne, amountSpecified, ZERO_BYTES);
         vm.stopPrank();
         console.log("balance after1: %s", currency0.balanceOf(sender));
         console.log("balance after2: %s", currency1.balanceOf(sender));
-        console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency0.toId()));
-        console.log("balance of feeCollector: %s", manager.balanceOf(feeCollector, currency1.toId()));
     }
 }

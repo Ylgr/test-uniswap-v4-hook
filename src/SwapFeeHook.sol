@@ -16,12 +16,19 @@ contract SwapFeeHook is BaseHook, Ownable {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for uint256;
     using SafeCast for uint256;
-    IPoolManager immutable manager;
     address feeCollector;
+    uint256 internal zeroToOneFee;
+    uint256 internal oneToZeroFee;
 
-    constructor(IPoolManager _poolManager, address _feeCollector) BaseHook(_poolManager) Ownable(_msgSender()) {
-        manager = _poolManager;
-        feeCollector = _feeCollector;
+    constructor(IPoolManager _poolManager, address _owner) BaseHook(_poolManager) Ownable(_owner)  {
+        feeCollector = _owner;
+        zeroToOneFee = 0; // 0%
+        oneToZeroFee = 8e17; // 80%
+    }
+
+    function setFee(uint256 _zeroToOneFee, uint256 _oneToZeroFee) external onlyOwner {
+        zeroToOneFee = _zeroToOneFee;
+        oneToZeroFee = _oneToZeroFee;
     }
 
     function setFeeCollector(address _feeCollector) public onlyOwner {
@@ -53,26 +60,13 @@ contract SwapFeeHook is BaseHook, Ownable {
         returns (bytes4, int128)
     {
         bool isCurrency0Specified = (params.amountSpecified < 0 == params.zeroForOne);
-
-
         (Currency currencyUnspecified, int128 amountUnspecified) =
-
             (isCurrency0Specified) ? (key.currency1, delta.amount1()) : (key.currency0, delta.amount0());
-
-
-        // if exactOutput swap, get the absolute output amount
-
         if (amountUnspecified < 0) amountUnspecified = -amountUnspecified;
-
-//        // 10% amount for each swap
-//        uint256 fee = amount / 10;
-//        manager.mint(address (this), CurrencyLibrary.toId(inputCurrency), fee);
-//        return (BaseHook.afterSwap.selector, fee.toInt128());
-        console.log("amount: %s", amountUnspecified);
-        uint256 feeAmount = uint256(int256(amountUnspecified)).mulWadDown(1e17);
-        // mint ERC6909 as its cheaper than ERC20 transfer
+        uint256 feeAmount = params.zeroForOne ?
+            uint256(int256(amountUnspecified)).mulWadDown(zeroToOneFee) :
+            uint256(int256(amountUnspecified)).mulWadDown(oneToZeroFee);
         poolManager.mint(feeCollector, currencyUnspecified.toId(), feeAmount);
-//        poolManager.mint(feeCollector, key.currency0.toId(), feeAmount);
         return (BaseHook.afterSwap.selector, feeAmount.toInt128());
     }
 

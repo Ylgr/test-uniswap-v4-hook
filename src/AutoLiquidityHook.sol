@@ -63,7 +63,7 @@ contract AutoLiquidityHook  is BaseHook, Ownable {
         );
 
 
-        return (BaseHook.beforeSwap.selector, SafeCast.toInt128(liquidityDelta), 0);
+        return (BaseHook.beforeSwap.selector, BeforeSwapDelta.wrap(liquidityDelta), 0);
 
     }
 
